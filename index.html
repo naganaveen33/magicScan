@@ -12,29 +12,6 @@
         font-family: Arial, sans-serif;
       }
       
-      #debugPanel {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        background: rgba(0, 0, 0, 0.9);
-        color: #0f0;
-        padding: 10px;
-        border-radius: 5px;
-        z-index: 10001;
-        font-size: 11px;
-        max-width: 250px;
-        font-family: monospace;
-      }
-      
-      .log-entry {
-        margin: 2px 0;
-        font-size: 10px;
-      }
-      
-      .error { color: #f44; }
-      .success { color: #4f4; }
-      .warning { color: #ff4; }
-      
       #scanOverlay {
         position: fixed;
         top: 0;
@@ -126,16 +103,6 @@
         z-index: 10000;
         display: none;
       }
-      
-      .status-indicator.active {
-        display: block;
-        animation: pulse 2s infinite;
-      }
-      
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-      }
 
       #unmuteButton {
         position: fixed;
@@ -162,12 +129,6 @@
   </head>
   <body>
     
-    <!-- Debug Panel -->
-    <div id="debugPanel">
-      <strong>Debug:</strong>
-      <div id="debugLog"></div>
-    </div>
-
     <!-- Scan Overlay -->
     <div id="scanOverlay">
       <div class="scan-container">
@@ -178,11 +139,6 @@
         </div>
         <p class="scan-instruction">Point your camera at this image</p>
       </div>
-    </div>
-
-    <!-- Status Indicator -->
-    <div id="statusIndicator" class="status-indicator">
-      ✓ Video Playing
     </div>
 
     <!-- Unmute Button -->
@@ -223,47 +179,20 @@
     </a-scene>
 
     <script>
-      const debugLog = document.getElementById('debugLog');
       const scanOverlay = document.getElementById('scanOverlay');
-      const statusIndicator = document.getElementById('statusIndicator');
       const unmuteButton = document.getElementById('unmuteButton');
       const previewImg = document.getElementById('previewImg');
       const sceneEl = document.querySelector('a-scene');
       const video = document.getElementById('arVideo');
-      
-      function log(msg, type = 'info') {
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${type}`;
-        entry.textContent = msg;
-        debugLog.appendChild(entry);
-        debugLog.scrollTop = debugLog.scrollHeight;
-        console.log(msg);
-      }
-
-      log('Init...', 'info');
 
       // Check preview image
       previewImg.onerror = () => {
-        log('❌ target_image.jpg not found', 'error');
         previewImg.style.display = 'none';
       };
-      previewImg.onload = () => {
-        log('✓ Preview image loaded', 'success');
-      };
-
-      // Check files exist
-      fetch('./assets/targets.mind')
-        .then(r => r.ok ? log('✓ targets.mind found', 'success') : log('❌ targets.mind NOT found', 'error'))
-        .catch(() => log('❌ targets.mind error', 'error'));
-
-      fetch('./assets/video.mp4')
-        .then(r => r.ok ? log('✓ video.mp4 found', 'success') : log('❌ video.mp4 NOT found', 'error'))
-        .catch(() => log('❌ video.mp4 error', 'error'));
 
       // Video setup
       video.muted = true;
       video.addEventListener('loadeddata', () => {
-        log('✓ Video loaded', 'success');
         
         // Auto-calculate aspect ratio
         const videoWidth = video.videoWidth;
@@ -307,19 +236,16 @@
         statusIndicator.classList.add('active');
         
         video.play().then(() => {
-          log('✓ Video playing', 'success');
           if (video.muted) {
             unmuteButton.classList.add('show');
           }
         }).catch(err => {
-          log('❌ Play error: ' + err, 'error');
+          console.error('Play error:', err);
         });
       });
       
       targetEl.addEventListener('targetLost', () => {
-        log('⚠ Target lost', 'warning');
         scanOverlay.classList.remove('hidden');
-        statusIndicator.classList.remove('active');
         unmuteButton.classList.remove('show');
         video.pause();
       });
@@ -328,19 +254,8 @@
       unmuteButton.addEventListener('click', () => {
         video.muted = false;
         unmuteButton.textContent = '🔊 Sound On';
-        log('✓ Unmuted', 'success');
         setTimeout(() => unmuteButton.classList.remove('show'), 2000);
       });
-
-      // Check camera
-      setTimeout(() => {
-        const videoEl = document.querySelector('video[autoplay]');
-        if (!videoEl) {
-          log('⚠ No camera detected yet', 'warning');
-        } else {
-          log('✓ Camera active', 'success');
-        }
-      }, 5000);
     </script>
   </body>
 </html>
