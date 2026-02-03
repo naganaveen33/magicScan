@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>WebAR Lion NFT Demo</title>
+    <title>WebAR Video Demo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -135,6 +135,44 @@
         0%, 100% { transform: scale(1); }
         50% { transform: scale(1.05); }
       }
+
+      #unmuteButton {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 152, 0, 0.95);
+        color: white;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 30px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 10000;
+        display: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      #unmuteButton:active {
+        transform: translateX(-50%) scale(0.95);
+      }
+
+      #unmuteButton.show {
+        display: block;
+        animation: slideUp 0.5s ease-out;
+      }
+
+      @keyframes slideUp {
+        from {
+          bottom: -60px;
+          opacity: 0;
+        }
+        to {
+          bottom: 30px;
+          opacity: 1;
+        }
+      }
     </style>
   </head>
   <body>
@@ -144,8 +182,7 @@
       <div class="scan-container">
         <h2 class="scan-title">Scan the Image</h2>
         <div class="target-preview">
-          <!-- Replace with your actual target image path -->
-          <img src="./assets/lion_target.jpg" alt="Target" class="target-image" onerror="this.style.display='none'">
+          <img src="./assets/target_image.jpg" alt="Target" class="target-image" onerror="this.style.display='none'">
           <div class="scan-animation"></div>
         </div>
         <p class="scan-instruction">
@@ -159,39 +196,57 @@
 
     <!-- Status Indicator -->
     <div id="statusIndicator" class="status-indicator">
-      ✓ Target Found
+      ✓ Target Found - Playing Video
     </div>
 
+    <!-- Unmute Button -->
+    <button id="unmuteButton">🔊 Tap to Unmute</button>
+
     <a-scene
-      mindar-image="imageTargetSrc: ./assets/lion_image.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
+      mindar-image="imageTargetSrc: ./assets/targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5;"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: true"
       renderer="colorManagement: true; sortObjects: true;">
       
       <a-assets>
-        <a-asset-item id="lionModel" src="./assets/lion_3d.glb"></a-asset-item>
+        <video 
+          id="arVideo" 
+          src="./assets/video.mp4" 
+          preload="auto" 
+          loop="true"
+          crossorigin="anonymous"
+          playsinline
+          webkit-playsinline>
+        </video>
       </a-assets>
       
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
-      <!-- Attach 3D lion model to image target -->
+      <!-- Attach video to image target -->
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-gltf-model 
-          src="#lionModel"
+        <a-video 
+          src="#arVideo"
           position="0 0 0"
           rotation="0 0 0"
-          scale="0.5 0.5 0.5">
-        </a-gltf-model>
+          width="1"
+          height="0.552"
+          opacity="1">
+        </a-video>
       </a-entity>
     </a-scene>
 
     <script>
       const scanOverlay = document.getElementById('scanOverlay');
       const statusIndicator = document.getElementById('statusIndicator');
+      const unmuteButton = document.getElementById('unmuteButton');
       const sceneEl = document.querySelector('a-scene');
+      const video = document.getElementById('arVideo');
       
       let arStarted = false;
       let targetFound = false;
+
+      // Start video muted for autoplay compatibility
+      video.muted = true;
 
       // Hide overlay when AR is ready
       sceneEl.addEventListener('arReady', () => {
@@ -203,37 +258,53 @@
       const targetEl = document.querySelector('[mindar-image-target]');
       
       targetEl.addEventListener('targetFound', () => {
-        console.log('Target Found!');
+        console.log('Target Found! Playing video...');
         targetFound = true;
         scanOverlay.classList.add('hidden');
         statusIndicator.classList.add('active');
+        
+        // Play video
+        video.play().then(() => {
+          console.log('Video playing');
+          // Show unmute button if video is muted
+          if (video.muted) {
+            unmuteButton.classList.add('show');
+          }
+        }).catch(err => {
+          console.error('Error playing video:', err);
+        });
       });
       
       targetEl.addEventListener('targetLost', () => {
-        console.log('Target Lost');
+        console.log('Target Lost - Pausing video');
         targetFound = false;
         scanOverlay.classList.remove('hidden');
         statusIndicator.classList.remove('active');
+        unmuteButton.classList.remove('show');
+        
+        // Pause video
+        video.pause();
       });
 
-      // Fallback: Hide overlay after camera starts (15 seconds max)
-      setTimeout(() => {
-        if (!targetFound && arStarted) {
-          console.log('Timeout - assuming camera is ready');
-          // Keep overlay visible until target is actually found
-        }
-      }, 15000);
+      // Unmute button click handler
+      unmuteButton.addEventListener('click', () => {
+        video.muted = false;
+        unmuteButton.textContent = '🔊 Sound On';
+        setTimeout(() => {
+          unmuteButton.classList.remove('show');
+        }, 2000);
+      });
 
       // Error handling
       window.addEventListener('error', (e) => {
         console.error('Error loading resources:', e);
         if (e.message && e.message.includes('404')) {
-          alert('Error: Could not load AR files. Please check that lion_image.mind and lion_3d.glb are in the assets folder.');
+          alert('Error: Could not load AR files. Please check that targets.mind and video.mp4 are in the assets folder.');
         }
       }, true);
 
       // Log loading progress
-      console.log('Initializing AR experience...');
+      console.log('Initializing AR video experience...');
     </script>
   </body>
 </html>
